@@ -33,6 +33,13 @@ namespace CharacterMap.Core
         ColorGlyph
     }
 
+    public enum ExportMode
+    {
+        Default,
+        ZXJSequence // Used by certain emoji
+    }
+
+
     public class ExportResult
     {
         public StorageFile File { get; }
@@ -64,12 +71,12 @@ namespace CharacterMap.Core
                    
                     CanvasDevice device = Utils.CanvasDevice;
                     Color textColor = style == ExportStyle.Black ? Colors.Black : Colors.White;
+                    Interop interop = SimpleIoc.Default.GetInstance<Interop>();
 
 
-                    // If COLR format (e.g. Segoe UI Emoji), we have special export path.
+                    // 1. Check for COLR format (e.g. Segoe UI Emoji).
                     if (style == ExportStyle.ColorGlyph && analysis.HasColorGlyphs && !analysis.GlyphFormats.Contains(GlyphImageFormat.Svg))
                     {
-                        Interop interop = SimpleIoc.Default.GetInstance<Interop>();
                         List<string> paths = new List<string>();
                         Rect bounds = Rect.Empty;
 
@@ -101,48 +108,26 @@ namespace CharacterMap.Core
                     }
 
 
-
-
-
+                    // 2. Prepare the fallback for other glyphs
                     var data = GetGeometry(1024, selectedVariant, selectedChar, analysis, typography);
                     async Task SaveMonochromeAsync()
                     {
-                        using (CanvasSvgDocument document = Utils.GenerateSvgDocument(device, data.Bounds, data.Path, textColor))
-                        {
-                            await Utils.WriteSvgAsync(document, file);
-                        }
+                        using CanvasSvgDocument document = Utils.GenerateSvgDocument(device, data.Bounds, data.Path, textColor);
+                        await Utils.WriteSvgAsync(document, file);
                     }
 
-                    // If the font uses SVG glyphs, we can extract the raw SVG from the font file
+                    // 3. Check for SVG Glyph.
                     if (analysis.GlyphFormats.Contains(GlyphImageFormat.Svg))
                     {
-                        byte[] bytes = GetGlyphBytes(selectedVariant.FontFace, selectedChar.UnicodeIndex, 8);
-                        
-                        string str;
+                        byte[] bytes;
 
-                        if (bytes.Length > 2 && bytes[0] == 31 && bytes[1] == 139)
-                        {
-                            // Content is GZIP'd. Decompress first.
-                            using (var stream = new MemoryStream(bytes))
-                            using (var gzip = new GZipStream(stream, CompressionMode.Decompress))
-                            using (var reader = new StreamReader(gzip))
-                            {
-                                str = reader.ReadToEnd();
-                            }
-                        }
-                        else
-                        {
-                            str = Encoding.UTF8.GetString(bytes);
-                        }
-
-                        if (str.StartsWith("<?xml"))
-                            str = str.Remove(0, str.IndexOf(">") + 1);
-
-                        str = str.TrimStart();
+                        var index = GetGlyphIndex(interop, style, selectedVariant, selectedChar, typography);
+                        bytes = GetGlyphBytesFromGlyphIndex(interop, selectedVariant.FontFace, index, GlyphImageFormat.Svg);
+                        string svgString = ReadSvg(bytes);
 
                         try
                         {
-                            using (CanvasSvgDocument document = CanvasSvgDocument.LoadFromXml(Utils.CanvasDevice, str))
+                            using (CanvasSvgDocument document = CanvasSvgDocument.LoadFromXml(Utils.CanvasDevice, svgString))
                             {
                                 // We need to transform the SVG to fit within the default document bounds, as characters
                                 // are based *above* the base origin of (0,0) as (0,0) is the Baseline (bottom left) position for a character, 
@@ -240,10 +225,20 @@ namespace CharacterMap.Core
                 if (await PickFileAsync(name, "PNG Image", new[] { ".png" }) is StorageFile file)
                 {
                     CachedFileManager.DeferUpdates(file);
+                    Interop interop = SimpleIoc.Default.GetInstance<Interop>();
 
                     if (analysis.GlyphFormats.Contains(GlyphImageFormat.Png))
                     {
-                        byte[] bytes = GetGlyphBytes(selectedVariant.FontFace, selectedChar.UnicodeIndex, 16);
+                        byte[] bytes;
+                        
+                        if (selectedChar.UnicodeIndex > -1)
+                            bytes = GetGlyphBytesFromUnicode(interop, selectedVariant.FontFace, selectedChar.UnicodeIndex, GlyphImageFormat.Png);
+                        else
+                        {
+                            var index = GetGlyphIndex(interop, style, selectedVariant, selectedChar, typography);
+                            bytes = GetGlyphBytesFromGlyphIndex(interop, selectedVariant.FontFace, index, GlyphImageFormat.Png);
+                        }
+
                         await FileIO.WriteBytesAsync(file, bytes);
                     }
                     else
@@ -265,7 +260,7 @@ namespace CharacterMap.Core
                                 var textColor = style == ExportStyle.Black ? Colors.Black : Colors.White;
                                 var fontSize = (float)d;
 
-                                using (CanvasTextLayout layout = new CanvasTextLayout(device, $"{selectedChar.Char}", new CanvasTextFormat
+                                using (CanvasTextLayout layout = new CanvasTextLayout(device, selectedChar.Char, new CanvasTextFormat
                                 {
                                     FontSize = fontSize,
                                     FontFamily = selectedVariant.Source,
@@ -279,7 +274,9 @@ namespace CharacterMap.Core
                                     if (style == ExportStyle.ColorGlyph)
                                         layout.Options = CanvasDrawTextOptions.EnableColorFont;
 
-                                    layout.SetTypography(0, 1, typography);
+                                    // Typography doesn't work on ZWJ characters;
+                                    if (!(selectedChar.Char.Length > 1))
+                                        layout.SetTypography(0, selectedChar.Char.Length, typography);
 
                                     var db = layout.DrawBounds;
                                     double scale = Math.Min(1, Math.Min(canvasW / db.Width, canvasH / db.Height));
@@ -294,11 +291,9 @@ namespace CharacterMap.Core
                                 }
                             }
 
-                            using (var fileStream = await file.OpenAsync(FileAccessMode.ReadWrite))
-                            {
-                                fileStream.Size = 0;
-                                await renderTarget.SaveAsync(fileStream, CanvasBitmapFileFormat.Png, 1f);
-                            }
+                            using var fileStream = await file.OpenAsync(FileAccessMode.ReadWrite);
+                            fileStream.Size = 0;
+                            await renderTarget.SaveAsync(fileStream, CanvasBitmapFileFormat.Png, 1f);
                         }
                     }
 
@@ -315,26 +310,14 @@ namespace CharacterMap.Core
             return new ExportResult(false, null);
         }
 
-        private static byte[] GetGlyphBytes(CanvasFontFace fontface, int unicodeIndex, int imageType)
-        {
-            Interop interop = SimpleIoc.Default.GetInstance<Interop>();
-            IBuffer buffer = interop.GetImageDataBuffer(fontface, 1024, (uint)unicodeIndex, (uint)imageType);
-            using (DataReader reader = DataReader.FromBuffer(buffer))
-            {
-                byte[] bytes = new byte[buffer.Length];
-                reader.ReadBytes(bytes);
-                return bytes;
-            }
-        }
-
         private static string GetFileName(
             InstalledFont selectedFont,
             FontVariant selectedVariant,
             Character selectedChar,
             string ext)
         {
-            var chr = GlyphService.GetCharacterDescription(selectedChar.UnicodeIndex, selectedVariant) ?? selectedChar.UnicodeString;
-            return $"{selectedFont.Name} {selectedVariant.PreferredName} - {chr}.{ext}";
+            string name = GlyphService.GetCharacterDescription(selectedChar, selectedVariant, selectedChar.UnicodeIndex == -1) ?? selectedChar.UnicodeString; ;
+            return $"{selectedFont.Name} {selectedVariant.PreferredName} - {name}.{ext}";
         }
 
         private static async Task<StorageFile> PickFileAsync(string fileName, string key, IList<string> values)
@@ -412,6 +395,98 @@ namespace CharacterMap.Core
 
                 return CanvasGeometry.CreateText(layout);
             }
+        }
+
+
+
+
+
+        private static string ReadSvg(byte[] bytes)
+        {
+            string str;
+
+            // SVG Glyphs may be GZip compressed. Checking the first two
+            // bytes will tell us this - if so, we should decompress it
+            // first
+            if (bytes.Length > 2 && bytes[0] == 31 && bytes[1] == 139)
+            {
+                // Content is GZIP'd. Decompress.
+                using var stream = new MemoryStream(bytes);
+                using var gzip = new GZipStream(stream, CompressionMode.Decompress);
+                using var reader = new StreamReader(gzip);
+                str = reader.ReadToEnd();
+            }
+            else
+            {
+                str = Encoding.UTF8.GetString(bytes);
+            }
+
+            // Remove the leading <?xml .... > tag
+            if (str.StartsWith("<?xml"))
+                str = str.Remove(0, str.IndexOf(">") + 1);
+
+            return str.Trim();
+        }
+
+        /// <summary>
+        /// Returns the glyph data for a Unicode character
+        /// </summary>
+        /// <returns></returns>
+        private static byte[] GetGlyphBytesFromUnicode(Interop interop, CanvasFontFace fontface, int unicodeIndex, GlyphImageFormat imageType)
+        {
+            GlyphImageData data = interop.GetImageDataBufferFromUnicodeIndex(fontface, 1024, (uint)unicodeIndex, imageType);
+
+            using DataReader reader = DataReader.FromBuffer(data.Buffer);
+            byte[] bytes = new byte[data.Buffer.Length];
+            reader.ReadBytes(bytes);
+            return bytes;
+        }
+
+        /// <summary>
+        /// Returns the glyph data from a specific glyph index in a font
+        /// </summary>
+        private static byte[] GetGlyphBytesFromGlyphIndex(Interop interop, CanvasFontFace fontface, UInt32 glyphIndex, GlyphImageFormat imageType)
+        {
+            GlyphImageData data = interop.GetImageDataBufferFromGlyphIndex(fontface, glyphIndex, 1024, imageType);
+
+            using DataReader reader = DataReader.FromBuffer(data.Buffer);
+            byte[] bytes = new byte[data.Buffer.Length];
+            reader.ReadBytes(bytes);
+            return bytes;
+        }
+
+        /// <summary>
+        /// Attempts to map a multi-character Unicode sequence to the appropriate 
+        /// single glyph index inside the font, if the font supports it.
+        /// </summary>
+        private static UInt32 GetGlyphIndex(
+            Interop interop,
+            ExportStyle style,
+            FontVariant selectedVariant,
+            Character selectedChar,
+            CanvasTypography typography)
+        {
+            using CanvasTextLayout layout = new CanvasTextLayout(Utils.CanvasDevice, selectedChar.Char, new CanvasTextFormat
+            {
+                FontSize = 128,
+                FontFamily = selectedVariant.Source,
+                FontStretch = selectedVariant.FontFace.Stretch,
+                FontWeight = selectedVariant.FontFace.Weight,
+                FontStyle = selectedVariant.FontFace.Style,
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                Options = style == ExportStyle.ColorGlyph ? CanvasDrawTextOptions.EnableColorFont : CanvasDrawTextOptions.Default
+            }, 1024, 1024);
+
+            if (style == ExportStyle.ColorGlyph)
+                layout.Options = CanvasDrawTextOptions.EnableColorFont;
+
+            // Typography doesn't work on ZWJ characters;
+            if (!(selectedChar.Char.Length > 1))
+                layout.SetTypography(0, selectedChar.Char.Length, typography);
+
+            var analysis1 = interop.AnalyzeCharacterLayout(layout);
+            var lol = analysis1.Indicies.Select(i => i.ToList()).ToList();
+            return lol.Last().FirstOrDefault(i => i > 1);
         }
     }
 }

@@ -11,6 +11,8 @@
 #include "DWriteFontFace.h"
 #include "DWriteFontSet.h"
 #include "PathData.h"
+#include "GlyphImageData.h"
+#include "GlyphImageFormat.h"
 
 
 using namespace Microsoft::Graphics::Canvas;
@@ -33,7 +35,9 @@ namespace CharacterMapCX
 
         Interop(CanvasDevice^ device);
 		bool HasValidFonts(Uri^ uri);
-		IBuffer^ GetImageDataBuffer(CanvasFontFace^ fontFace, UINT32 pixelsPerEm, UINT unicodeIndex, UINT imageType);
+		GlyphImageData^ GetImageDataBufferFromUnicodeIndex(CanvasFontFace^ fontFace, UINT32 pixelsPerEm, uint32 index, GlyphImageFormat imageType);
+		GlyphImageData^ GetImageDataBufferFromGlyphIndex(CanvasFontFace^ fontFace, uint32 index, UINT32 pixelsPerEm, GlyphImageFormat imageType);
+
 		CanvasTextLayoutAnalysis^ AnalyzeFontLayout(CanvasTextLayout^ layout, CanvasFontFace^ fontFace);
 		CanvasTextLayoutAnalysis^ AnalyzeCharacterLayout(CanvasTextLayout^ layout);
 		IVectorView<PathData^>^ GetPathDatas(CanvasFontFace^ fontFace, const Platform::Array<UINT16>^ glyphIndicies);
@@ -48,6 +52,9 @@ namespace CharacterMapCX
 		__inline DWriteProperties^ GetDWriteProperties(ComPtr<IDWriteFontSet3> fontSet, UINT index, ComPtr<IDWriteFontFaceReference1> faceRef, int ls, wchar_t* locale);
 		__inline String^ GetLocaleString(ComPtr<IDWriteLocalizedStrings> strings, int ls, wchar_t* locale);
 		__inline DWriteProperties^ GetDWriteProperties(CanvasFontSet^ fontSet, UINT index);
+
+		__inline GlyphImageData^ GetImageDataBufferFromGlyphIndex(ComPtr<IDWriteFontFace5> face, uint32 index, UINT32 pixelsPerEm, GlyphImageFormat imageType);
+
 
 		ComPtr<IDWriteFactory7> m_dwriteFactory;
 		ComPtr<ID2D1Factory5> m_d2dFactory;

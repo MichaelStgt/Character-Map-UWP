@@ -66,6 +66,19 @@ CharacterMapCX::CanvasTextLayoutAnalysis::CanvasTextLayoutAnalysis(ComPtr<ColorT
 	// If we're analyzing the character only, we're done here.
 	if (analyzer->IsCharacterAnalysisMode || fontFaceRef == nullptr)
 		return;
+	
+	// Find out if we contain emoji
+	/*ComPtr<IDWriteFontFace3> face;
+	fontFaceRef->CreateFontFace(&face);
+	uint32_t rangeCount;
+	face->GetUnicodeRanges(0, nullptr, &rangeCount);
+	DWRITE_UNICODE_RANGE* ranges = new (std::nothrow) DWRITE_UNICODE_RANGE[rangeCount];
+	uint32* count;
+	face->GetUnicodeRanges(UINT32_MAX, ranges, count);
+	for (size_t i = 0; i < rangeCount; i++)
+	{
+		auto ranges = ranges[i];
+	}*/
 
 	// Get File Size
 	m_fileSize = fontFaceRef->GetFileSize();
@@ -80,6 +93,8 @@ CharacterMapCX::CanvasTextLayoutAnalysis::CanvasTextLayoutAnalysis(ComPtr<ColorT
 	ComPtr<IDWriteFontFileLoader> loader;
 	if (file->GetLoader(&loader) != S_OK)
 		return;
+
+
 
 	ComPtr<IDWriteLocalFontFileLoader> localLoader;
 	if (loader->QueryInterface<IDWriteLocalFontFileLoader>(&localLoader) == S_OK)

@@ -110,6 +110,18 @@ namespace CharacterMap.Core
             return Localization.Get($"DWriteSource{DirectWriteProperties.Source.ToString()}");
         }
 
+        public IReadOnlyList<Character> GetEmoji()
+        {
+            return FontFinder.GetAllEmoji();
+
+            // todo : return only the emoji supported by the font, somehow.
+            //var characters = new List<Character>();
+            //foreach (var range in FontFinder.GetAllEmoji())
+            //{
+               
+            //}
+        }
+
         public IReadOnlyList<Character> GetCharacters()
         {
             if (Characters == null)

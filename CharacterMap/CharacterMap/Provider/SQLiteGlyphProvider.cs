@@ -86,6 +86,17 @@ namespace CharacterMap.Provider
             return desc;
         }
 
+        public string GetEmojiDescription(Character c)
+        {
+            string desc = _connection.Get<EmojiGlyph>(g => g.Codepoints == c.Char)?.Description;
+            return desc;
+        }
+
+        public EmojiGlyph GetEmoji(Character c)
+        {
+            return _connection.Get<EmojiGlyph>(g => g.Codepoints == c.Char);
+        }
+
         #region SEARCH
 
         public Task<IReadOnlyList<IGlyphData>> SearchAsync(string query, FontVariant variant)

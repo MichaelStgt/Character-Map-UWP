@@ -47,6 +47,11 @@ namespace CharacterMapCX
 			bool get() { return m_glyphLayerCount > 1; }
 		}
 
+		property bool ContainsUnicodeEmoji
+		{
+			bool get() { return m_containsEmoji; }
+		}
+
 		/// <summary>
 		/// The number of glyphs that make up this rendered character. For
 		/// COLR fonts this defines the number of glyphs composited together
@@ -95,6 +100,7 @@ namespace CharacterMapCX
 		bool m_hasColorGlyphs = false;
 		bool m_containsBitmapGlyphs = false;
 		bool m_containsVectorColorGlyphs = false;
+		bool m_containsEmoji = false;
 		int m_glyphLayerCount = 1;
 		int m_fileSize = 0;
 		Platform::String^ m_filePath = nullptr;

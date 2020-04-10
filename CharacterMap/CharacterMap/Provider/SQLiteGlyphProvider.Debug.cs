@@ -59,6 +59,8 @@ namespace CharacterMap.Provider
                 await PopulateDingsAsync<Wingdings2Glyph>(connection, unicode, "Wingdings2");
                 await PopulateDingsAsync<Wingdings3Glyph>(connection, unicode, "Wingdings3");
 
+                await PopulateEmojiAsync(connection);
+
                 using (SQLiteConnection con = new SQLiteConnection(connection))
                 {
                     con.Execute($"DROP TRIGGER IF EXISTS insert_trigger_{MDL2_SEARCH_TABLE}");
@@ -333,10 +335,20 @@ namespace CharacterMap.Provider
             }
         }
 
+        private Task PopulateEmojiAsync(SQLiteConnectionString connection)
+        {
+            return Task.Run(() =>
+            {
+                using var c = new SQLiteConnection(connection);
+                c.RunInTransaction(() => c.InsertAll(NeoSmart.Unicode.Emoji.All.Select(e => new EmojiGlyph { Codepoints = e.ToString(), Description = e.Name, Utf32 = string.Join(",", e.Sequence.AsUtf32) })));
+            });
+        }
+
         private static void PrepareDatabase(SQLiteConnection con)
         {
             con.CreateTable<MDL2Glyph>();
             con.CreateTable<UnicodeGlyphData>();
+            con.CreateTable<EmojiGlyph>();
 
             foreach (SearchTarget target in SearchTarget.KnownTargets)
                 con.CreateTable(target.TargetType);

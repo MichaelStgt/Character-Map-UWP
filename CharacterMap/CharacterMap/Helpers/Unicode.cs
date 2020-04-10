@@ -9,6 +9,9 @@ namespace CharacterMap.Helpers
 {
     public static class Unicode
     {
+        public const char ZeroWidthJoiner = '\u200d';
+        public const char EmojiVariationSelector  = '\ufe0f';
+
         public static bool IsWhiteSpace(int c)
         {
             return ((c == ' ') || (c >= 0x0009 && c <= 0x000d) || c == 0x00a0 || c == 0x0085);
@@ -30,5 +33,6 @@ namespace CharacterMap.Helpers
         {
             return cat == UnicodeCharacters.GetGeneralCategory((uint)c);
         }
+
     }
 }

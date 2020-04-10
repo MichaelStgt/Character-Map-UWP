@@ -40,32 +40,15 @@
                         <Setter Property="TextLineBounds" Value="Tight" />
                     </Style>
 
-                    <Style x:Key="Mfsi" TargetType="MenuFlyoutSubItem">
-                        <Setter Property="MinHeight" Value="50" />
-                    </Style>
                     <Style x:Key="Mfi" TargetType="MenuFlyoutItem">
                         <Setter Property="MinHeight" Value="40" />
                         <Setter Property="MinWidth" Value="160" />
                     </Style>
 
-                    <Style x:Key="MFlyoutHeaderStyle" TargetType="MenuFlyoutItem">
-                        <Setter Property="IsEnabled" Value="False" />
-                        <Setter Property="FontSize" Value="13.333" />
-                        <Setter Property="Height" Value="30" />
-                        <Setter Property="Padding" Value="10 16 10 0" />
-                        <Setter Property="Margin" Value="0 0 0 -4" />
-                    </Style>
-
-
-
                     <SolidColorBrush x:Key="WhiteBrush" Color="White" />
                     <SolidColorBrush x:Key="BlackBrush" Color="Black" />
                     <SolidColorBrush x:Key="PrintBorderBrush" Color="LightGray" />
-                    <SolidColorBrush x:Key="SystemControlTransparentRevealBackgroundBrush" Color="Transparent" />
-                    <SolidColorBrush x:Key="SystemControlTransparentRevealBorderBrush" Color="Transparent" />
                     <Thickness x:Key="ListViewItemRevealBorderThemeThickness">0</Thickness>
-                    <SolidColorBrush x:Key="ListViewItemRevealBackgroundSelectedPressed" Color="Transparent" />
-                    <SolidColorBrush x:Key="ListViewItemRevealPlaceholderBackground" Color="Transparent" />
 
                     <AcrylicBrush
                         x:Key="DefaultHostBrush"
@@ -74,7 +57,7 @@
                         FallbackColor="{ThemeResource SystemChromeMediumColor}"
                         TintColor="{ThemeResource SystemAltHighColor}"
                         TintOpacity="0.775" />
-                 
+
                     <AcrylicBrush
                         x:Key="AltHostBrush"
                         BackgroundSource="HostBackdrop"

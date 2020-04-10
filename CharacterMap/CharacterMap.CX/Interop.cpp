@@ -7,6 +7,7 @@
 #include "SVGGeometrySink.h"
 #include "PathData.h"
 #include "Windows.h"
+#include "GlyphImageData.h";
 
 using namespace Microsoft::WRL;
 using namespace CharacterMapCX;
@@ -183,36 +184,46 @@ DWriteProperties^ Interop::GetDWriteProperties(CanvasFontSet^ fontSet, UINT inde
 	return ref new DWriteProperties(fontSource, sourceName, nullptr, nullptr, face->IsColorFont());
 }
 
-IBuffer^ Interop::GetImageDataBuffer(CanvasFontFace^ fontFace, UINT32 pixelsPerEm, UINT unicodeIndex, UINT imageType)
+GlyphImageData^ Interop::GetImageDataBufferFromUnicodeIndex(CanvasFontFace^ fontFace, UINT32 pixelsPerEm, UINT32 index, GlyphImageFormat imageType)
 {
 	ComPtr<IDWriteFontFaceReference> faceRef = GetWrappedResource<IDWriteFontFaceReference>(fontFace);
 	ComPtr<IDWriteFontFace3> face;
 	faceRef->CreateFontFace(&face);
-	/*IDWriteFontFace5* face5;
-	face->QueryInterface(__uuidof(IDWriteFontFace5), reinterpret_cast<void**>(&face5));*/
 
 	ComPtr<IDWriteFontFace5> face5;
 	face.As(&face5);
-	
+
 	UINT16 idx = 0;
 	auto arr = new UINT[1];
-	arr[0] = unicodeIndex;
+	arr[0] = index;
 	auto hr3 = face5->GetGlyphIndices(arr, 1, &idx);
 	delete arr;
 
+	return GetImageDataBufferFromGlyphIndex(face5, index, pixelsPerEm, imageType);
+}
+
+GlyphImageData^ Interop::GetImageDataBufferFromGlyphIndex(CanvasFontFace^ fontFace, uint32 index, UINT32 pixelsPerEm, GlyphImageFormat imageType)
+{
+	ComPtr<IDWriteFontFaceReference> faceRef = GetWrappedResource<IDWriteFontFaceReference>(fontFace);
+	ComPtr<IDWriteFontFace3> face;
+	faceRef->CreateFontFace(&face);
+
+	ComPtr<IDWriteFontFace5> face5;
+	face.As(&face5);
+
+	return GetImageDataBufferFromGlyphIndex(face5, index, pixelsPerEm, imageType);
+}
+
+GlyphImageData^ Interop::GetImageDataBufferFromGlyphIndex(ComPtr<IDWriteFontFace5> face, uint32 index, UINT32 pixelsPerEm, GlyphImageFormat imageType)
+{
 	DWRITE_GLYPH_IMAGE_DATA data;
 	void* context;
-	auto formats = face5->GetGlyphImageData(idx, pixelsPerEm, static_cast<DWRITE_GLYPH_IMAGE_FORMATS>(imageType), &data, &context);
+	auto formats = face->GetGlyphImageData(index, pixelsPerEm, static_cast<DWRITE_GLYPH_IMAGE_FORMATS>(imageType), &data, &context);
 
-	auto b = (byte*)data.imageData;
-	DataWriter^ writer = ref new DataWriter();
-	writer->WriteBytes(Platform::ArrayReference<BYTE>(b, data.imageDataSize));
-	IBuffer^ buffer = writer->DetachBuffer();
+	auto imageData = ref new GlyphImageData(data);
+	face->ReleaseGlyphImageData(context);
 
-	face5->ReleaseGlyphImageData(context);
-	delete writer;
-
-	return buffer;
+	return imageData;
 }
 
 Platform::String^ Interop::GetPathData(CanvasFontFace^ fontFace, UINT16 glyphIndicie)

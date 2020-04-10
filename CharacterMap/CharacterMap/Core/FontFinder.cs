@@ -7,6 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using CharacterMap.Helpers;
+using CharacterMap.Models;
+using CharacterMap.Services;
 using CharacterMapCX;
 using GalaSoft.MvvmLight.Ioc;
 using Windows.Storage;
@@ -36,6 +38,9 @@ namespace CharacterMap.Core
         private static SemaphoreSlim _initSemaphore { get; } = new SemaphoreSlim(1,1);
         private static SemaphoreSlim _loadSemaphore { get; } = new SemaphoreSlim(1,1);
 
+        private static List<Character> _allEmoji { get; set; }
+
+
         /* If we can't delete a font during a session, we mark it here */
         private static HashSet<string> _ignoredFonts { get; } = new HashSet<string>();
 
@@ -44,6 +49,7 @@ namespace CharacterMap.Core
         public static List<InstalledFont> Fonts { get; private set; }
 
         public static InstalledFont DefaultFont { get; private set; }
+
 
         public static bool HasAppxFonts                { get; private set; }
                 
@@ -417,6 +423,15 @@ namespace CharacterMap.Core
 
             GC.Collect();
             return resultList.Count > 0 ? resultList.First().Value : null;
+        }
+
+
+        public static List<Character> GetAllEmoji()
+        {
+            if (_allEmoji == null)
+                _allEmoji = new List<Character>(NeoSmart.Unicode.Emoji.All.Select(e => new Character { Char = e.ToString() }));
+            
+            return _allEmoji;
         }
 
         public static bool IsMDL2(FontVariant variant) => variant.FamilyName.Contains("MDL2");

@@ -188,6 +188,7 @@
                     <toolkit:WrapPanel
                         x:Name="OptionsPanel"
                         x:FieldModifier="public"
+                        Margin="0 0 -12 0"
                         ChildrenTransitions="{StaticResource RepositionTransitions}"
                         HorizontalSpacing="12"
                         Orientation="Horizontal">
@@ -386,7 +387,6 @@
                         <Button
                             x:Uid="FontOptionsButton"
                             MinHeight="47"
-                            Margin="0 0 -12 0"
                             VerticalAlignment="Stretch"
                             IsEnabled="{Binding HasFontOptions}"
                             Style="{ThemeResource TransparentHintButton}">
@@ -439,14 +439,9 @@
                             </Button.Flyout>
                         </Button>
 
-                        <!--<TextBlock
-                                Grid.Row="1"
-                                Margin="12 12 0 0"
-                                VerticalAlignment="Center"
-                                FontSize="12"
-                                Opacity="0.6"
-
-                                Visibility="{x:Bind core:Converters.FalseToVis(ViewModel.Settings.UseStatusBar), Mode=OneWay}" />-->
+                        <ToggleButton MinHeight="47" IsChecked="{x:Bind ViewModel.IsGlyphMapMode, Mode=TwoWay}">
+                            <FontIcon Glyph="&#xED58;" />
+                        </ToggleButton>
 
                     </toolkit:WrapPanel>
 
@@ -596,11 +591,13 @@
                         Loaded="{x:Bind helpers:Composition.SetStandardReposition}">
                         <TextBlock
                             FontSize="12"
+                            IsTextSelectionEnabled="True"
                             Text="{x:Bind ViewModel.GetCharName(ViewModel.SelectedChar), Mode=OneWay}"
                             TextWrapping="Wrap" />
                         <TextBlock
                             FontSize="12"
                             Foreground="{ThemeResource TextControlPlaceholderForeground}"
+                            IsTextSelectionEnabled="True"
                             Text="{x:Bind ViewModel.GetCharDescription(ViewModel.SelectedChar), Mode=OneWay}"
                             TextWrapping="Wrap" />
                     </StackPanel>
@@ -768,7 +765,7 @@
                         Grid.Row="6"
                         ColumnSpacing="8"
                         Height="50"
-                        Margin="0,15,0,0">
+                        Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="50" />

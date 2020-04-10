@@ -4,7 +4,7 @@
     {
         public string Char { get; set; }
 
-        public int UnicodeIndex { get; set; }
+        public int UnicodeIndex { get; set; } = -1;
 
         public string UnicodeString => "U+" + UnicodeIndex.ToString("x4").ToUpper();
 

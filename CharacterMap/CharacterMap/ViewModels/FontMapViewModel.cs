@@ -201,6 +201,20 @@ namespace CharacterMap.ViewModels
             set => Set(ref _isLongGeometry, value);
         }
 
+        private bool _isGlyphMapMode = false;
+        public bool IsGlyphMapMode
+        {
+            get => _isGlyphMapMode;
+            set
+            {
+                if (Set(ref _isGlyphMapMode, value))
+                {
+                    Chars = null;
+                    LoadChars(SelectedVariant);
+                }
+            }
+        }
+
         private string _xamlPath;
         public string XamlPath
         {
@@ -268,7 +282,7 @@ namespace CharacterMap.ViewModels
             try
             {
                 IsLoadingCharacters = true;
-                Chars = variant?.GetCharacters();
+
                 if (variant != null)
                 {
                     var chars = TypographyAnalyzer.GetCharString(variant);
@@ -287,8 +301,19 @@ namespace CharacterMap.ViewModels
                         layout.Options = CanvasDrawTextOptions.EnableColorFont;
                         ApplyEffectiveTypography(layout);
                         SelectedVariantAnalysis = _interop.AnalyzeFontLayout(layout, variant.FontFace);
+                    }
+
+                    if (IsGlyphMapMode)
+                    {
+                        Chars = variant.GetEmoji();
+                        HasFontOptions = false;
+                    }
+                    else
+                    {
+                        Chars = variant?.GetCharacters();
                         HasFontOptions = SelectedVariantAnalysis.ContainsVectorColorGlyphs || SelectedVariant.HasXamlTypographyFeatures;
                     }
+
                     ShowColorGlyphs = variant.DirectWriteProperties.IsColorFont;
                 }
                 else
@@ -397,7 +422,7 @@ namespace CharacterMap.ViewModels
             else
             {
                 SelectedChar = Chars?.FirstOrDefault(
-                    c => !Windows.Data.Text.UnicodeCharacters.IsWhitespace((uint)c.UnicodeIndex)) ?? Chars.FirstOrDefault();
+                    c => c.UnicodeIndex > -1 && !Windows.Data.Text.UnicodeCharacters.IsWhitespace((uint)c.UnicodeIndex)) ?? Chars.FirstOrDefault();
             }
         }
 
@@ -406,7 +431,7 @@ namespace CharacterMap.ViewModels
             if (SelectedVariant == null || c == null)
                 return null;
 
-            return GlyphService.GetCharacterDescription(c.UnicodeIndex, SelectedVariant);
+            return GlyphService.GetCharacterDescription(c, SelectedVariant, true);
         }
 
         public string GetCharDescription(Character c)

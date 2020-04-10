@@ -10,6 +10,7 @@ using Microsoft.Graphics.Canvas.Text;
 using SQLite;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Windows.UI.Xaml.Controls;
 
@@ -35,6 +36,15 @@ namespace CharacterMap.Services
         public string Description { get; set; }
     }
 
+    public class EmojiGlyph
+    { 
+        [PrimaryKey]
+        public string Codepoints { get; set; }
+        public string Description { get; set; }
+        public string Utf32 { get; set; }
+    }
+
+
     public class MDL2Glyph : GlyphDescription { }
     public class MaterialDesignIconsLegacyGlyph : GlyphDescription { }
     public class MaterialDesignIconsGlyph : GlyphDescription { }
@@ -49,6 +59,8 @@ namespace CharacterMap.Services
     {
         void Initialise();
         string GetCharacterDescription(int unicodeIndex, FontVariant variant);
+        string GetEmojiDescription(Character c);
+        EmojiGlyph GetEmoji(Character c);
         Task<IReadOnlyList<IGlyphData>> SearchAsync(string query, FontVariant variant);
     }
 
@@ -73,7 +85,7 @@ namespace CharacterMap.Services
 
         private static Task InitializeInternalAsync()
         {
-#if DEBUG && GENERATE_DATABASE
+#if DEBUG //&& GENERATE_DATABASE
             if (_provider is SQLiteGlyphProvider p)
             {
                 return p.InitialiseDatabaseAsync();
@@ -82,18 +94,31 @@ namespace CharacterMap.Services
             return Task.CompletedTask;
         }
 
-        internal static string GetCharacterDescription(int unicodeIndex, FontVariant variant)
+        internal static string GetCharacterDescription(Character c, FontVariant variant, bool isEmoji = false)
         {
             if (variant == null || _provider == null)
                 return null;
 
-            return _provider.GetCharacterDescription(unicodeIndex, variant);
+            if (isEmoji)
+                return _provider.GetEmojiDescription(c);
+            else
+                return  _provider.GetCharacterDescription(c.UnicodeIndex, variant);
         }
 
         internal static string GetCharacterKeystroke(int unicodeIndex)
         {
             if (unicodeIndex >= 128 && unicodeIndex <= 255)
                 return Localization.Get("CharacterKeystrokeLabel",  unicodeIndex);
+
+            return null;
+        }
+
+        internal static UInt32[] GetEmojiSequence(Character c)
+        {
+            if (_provider.GetEmoji(c) is EmojiGlyph e)
+            {
+                return e.Utf32.Split(',').Select(s => Convert.ToUInt32(s, 10)).ToArray();
+            }
 
             return null;
         }
